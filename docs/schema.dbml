@@ -1,0 +1,113 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+// 의류 쇼핑몰 ERD
+
+Table member {
+  id         bigint      [primary key, increment]
+  email      varchar(100) [unique, not null, note: '로그인 ID']
+  password   varchar(255) [not null]
+  name       varchar(50)  [not null]
+  phone      varchar(20)
+  address    varchar(255)
+  role       varchar(10)  [not null, default: 'USER', note: 'USER | ADMIN']
+  created_at timestamp    [not null, default: `now()`]
+  updated_at timestamp    [not null, default: `now()`]
+}
+
+Table category {
+  id   bigint      [primary key, increment]
+  name varchar(50) [unique, not null, note: '상의 | 하의 | 아우터 | 신발 | 액세서리']
+}
+
+Table item {
+  id          bigint       [primary key, increment]
+  category_id bigint       [not null]
+  name        varchar(100) [not null]
+  description text
+  price       int          [not null]
+  status      varchar(10)  [not null, default: 'SELLING', note: 'SELLING | SOLD_OUT | STOP']
+  created_at  timestamp    [not null, default: `now()`]
+  updated_at  timestamp    [not null, default: `now()`]
+}
+
+Table item_option {
+  id             bigint      [primary key, increment]
+  item_id        bigint      [not null]
+  size           varchar(5)  [not null, note: 'S | M | L | XL']
+  color          varchar(30) [not null]
+  stock_quantity int         [not null, default: 0]
+}
+
+Table cart {
+  id        bigint [primary key, increment]
+  member_id bigint [unique, not null]
+}
+
+Table cart_item {
+  id             bigint [primary key, increment]
+  cart_id        bigint [not null]
+  item_option_id bigint [not null]
+  quantity       int    [not null, default: 1]
+}
+
+Table orders {
+  id               bigint       [primary key, increment]
+  member_id        bigint       [not null]
+  total_price      int          [not null]
+  status           varchar(15)  [not null, default: 'PENDING', note: 'PENDING | PAID | SHIPPING | DELIVERED | CANCELLED']
+  delivery_address varchar(255) [not null]
+  created_at       timestamp    [not null, default: `now()`]
+}
+
+Table order_item {
+  id             bigint [primary key, increment]
+  order_id       bigint [not null]
+  item_option_id bigint [not null]
+  quantity       int    [not null]
+  order_price    int    [not null, note: '주문 당시 가격 스냅샷']
+}
+
+// ================================
+// Relations
+// ================================
+Ref: item.category_id       > category.id      // 상품 N : 카테고리 1
+Ref: item_option.item_id    > item.id           // 옵션 N : 상품 1
+Ref: cart.member_id         - member.id         // 장바구니 1 : 회원 1
+Ref: cart_item.cart_id      > cart.id           // 장바구니상품 N : 장바구니 1
+Ref: cart_item.item_option_id > item_option.id  // 장바구니상품 N : 옵션 1
+Ref: orders.member_id       > member.id         // 주문 N : 회원 1
+Ref: order_item.order_id    > orders.id         // 주문상품 N : 주문 1
+Ref: order_item.item_option_id > item_option.id // 주문상품 N : 옵션 1
+
+// ================================
+// Sample Records
+// ================================
+Records category(id, name) {
+  1, '상의'
+  2, '하의'
+  3, '아우터'
+  4, '신발'
+  5, '액세서리'
+}
+
+Records member(id, email, name, role) {
+  1, 'admin@shop.com',  '관리자',   'ADMIN'
+  2, 'alice@email.com', '홍길동',   'USER'
+  3, 'bob@email.com',   '김철수',   'USER'
+}
+
+Records item(id, category_id, name, price, status) {
+  1, 1, '베이직 화이트 티셔츠', 29000, 'SELLING'
+  2, 1, '스트라이프 반팔',      35000, 'SELLING'
+  3, 2, '슬림 데님 팬츠',       59000, 'SELLING'
+  4, 3, '오버핏 코튼 자켓',     89000, 'SELLING'
+}
+
+Records item_option(id, item_id, size, color, stock_quantity) {
+  1, 1, 'S',  '화이트', 50
+  2, 1, 'M',  '화이트', 50
+  3, 1, 'L',  '화이트', 30
+  4, 2, 'M',  '네이비', 20
+  5, 3, 'M',  '블루',   15
+  6, 4, 'L',  '베이지', 10
+}
