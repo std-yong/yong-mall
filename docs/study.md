@@ -815,3 +815,73 @@ List<CartItemResponse> result = cartItems.stream()
 - `.map(변환함수)` — 각 요소를 다른 타입으로 변환
 - `.toList()` — 다시 List로 모으기
 - `CartItemResponse::new` — `item -> new CartItemResponse(item)` 의 축약
+
+---
+
+## 21. 가격 스냅샷 패턴
+
+주문 시점의 상품 가격을 `OrderItem`에 별도 저장하는 패턴.
+
+### 왜 필요한가?
+
+나중에 상품 가격이 바뀌어도 주문 내역은 당시 가격 그대로 보여야 함.
+`Item.price`를 참조하면 가격이 바뀌었을 때 과거 주문 금액도 바뀌어버림.
+
+```java
+// OrderItem에 orderPrice 필드 별도 저장
+@Column(nullable = false)
+private int orderPrice;  // 주문 당시 가격 (스냅샷)
+
+// 주문 생성 시 현재가격을 복사해서 저장
+.orderPrice(cartItem.getItemOption().getItem().getPrice())
+```
+
+---
+
+## 22. orphanRemoval로 장바구니 비우기
+
+`cascade = CascadeType.ALL` + `orphanRemoval = true` 조합을 활용해 장바구니를 비울 때 별도 delete 쿼리 없이 처리.
+
+```java
+// Cart.java
+@OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+private List<CartItem> cartItems = new ArrayList<>();
+```
+
+```java
+// 장바구니 비우기 — 리스트에서 제거하면 DB에서도 자동 DELETE
+cart.getCartItems().clear();
+```
+
+- `orphanRemoval = true` — 부모(Cart)의 컬렉션에서 제거된 자식(CartItem)을 DB에서도 자동 삭제
+- 별도로 `cartItemRepository.deleteAll(...)` 호출 불필요
+
+---
+
+## 23. 주문 상태 관리 (Status Enum)
+
+주문은 물리적으로 삭제하지 않고 **상태값으로 관리**.
+
+```java
+public enum Status {
+    PENDING,    // 결제 대기 (취소 가능)
+    PAID,       // 결제 완료
+    SHIPPING,   // 배송 중
+    DELIVERED,  // 배송 완료
+    CANCELLED   // 취소됨
+}
+```
+
+### 취소 가능 조건
+
+```java
+public void cancel() {
+    if (this.status != Status.PENDING) {
+        throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+    }
+    this.status = Status.CANCELLED;
+}
+```
+
+→ 비즈니스 규칙(PENDING만 취소 가능)을 Entity 안에 캡슐화함
+→ Service에서 직접 status를 바꾸지 않고 Entity 메서드를 통해서만 변경

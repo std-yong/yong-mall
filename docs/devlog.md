@@ -750,7 +750,7 @@ public ResponseEntity<Page<ItemResponse>> getItems(
 - [x] GlobalExceptionHandler 구현
 - [x] 상품 API 구현 (카테고리, 상품, 옵션) + Swagger 테스트 성공
 - [x] 장바구니 API 구현
-- [ ] 주문 API 구현
+- [x] 주문 API 구현
 
 ---
 
@@ -805,3 +805,95 @@ cartRepository.save(new Cart(savedMember));  // 장바구니 자동 생성
 - `GET /api/cart` → 200 OK (담긴 상품 목록) ✅
 - `PATCH /api/cart/items/{itemOptionId}` → 200 OK ✅
 - `DELETE /api/cart/items/{itemOptionId}` → 204 No Content ✅
+
+---
+
+## 13. 주문 API 구현
+
+### 추가한 파일 목록
+
+```
+domain/order/
+    dto/
+        CreateOrderRequest.java   → 주문 생성 요청 DTO (deliveryAddress)
+        OrderItemResponse.java    → 주문 상품 응답 DTO
+        OrderResponse.java        → 주문 응답 DTO (주문 상품 목록 포함)
+    service/
+        OrderService.java         → 주문 비즈니스 로직
+    controller/
+        OrderController.java      → /api/orders
+```
+
+### API 목록
+
+| 메서드 | URL | 설명 |
+|---|---|---|
+| POST | /api/orders | 주문 생성 (장바구니 → 주문) |
+| GET | /api/orders | 내 주문 목록 (페이지네이션) |
+| GET | /api/orders/{orderId} | 주문 상세 조회 |
+| DELETE | /api/orders/{orderId} | 주문 취소 (PENDING 상태만) |
+
+### 핵심 로직: 장바구니 → 주문 변환
+
+```java
+// 1. 장바구니 상품으로 OrderItem 생성 (가격 스냅샷)
+for (CartItem cartItem : cart.getCartItems()) {
+    OrderItem orderItem = OrderItem.builder()
+            .order(order)
+            .itemOption(cartItem.getItemOption())
+            .quantity(cartItem.getQuantity())
+            .orderPrice(cartItem.getItemOption().getItem().getPrice())  // 현재가격 스냅샷
+            .build();
+    order.getOrderItems().add(orderItem);
+}
+
+// 2. 주문 저장 후 장바구니 비우기
+orderRepository.save(order);
+cart.getCartItems().clear();  // orphanRemoval = true 이므로 DB에서도 자동 삭제
+```
+
+### 주문 취소 로직
+
+```java
+// Order.java 엔티티에 취소 메서드 있음
+public void cancel() {
+    if (this.status != Status.PENDING) {
+        throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+    }
+    this.status = Status.CANCELLED;
+}
+```
+→ PENDING 상태가 아니면 취소 불가. 상태 변경만으로 취소 처리 (물리적 삭제 X)
+
+### 트러블슈팅: Public Key Retrieval is not allowed
+
+**증상**
+```
+SQLNonTransientConnectionException: Public Key Retrieval is not allowed
+```
+
+**원인**
+MySQL 8.x는 기본 인증 방식이 `caching_sha2_password`로 변경됨.
+클라이언트가 처음 연결할 때 서버 공개키를 받아와야 하는데, 기본값이 차단되어 있음.
+
+**해결**
+`application.properties`의 DB URL에 옵션 추가
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/shopping_mall?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+```
+
+### 트러블슈팅: git amend + force push 후 잔디 안 심어짐
+
+**증상**
+커밋 author를 수정하기 위해 `--amend --reset-author` 후 `--force push` 했더니 GitHub 잔디가 반영되지 않음
+
+**원인**
+GitHub이 force push로 덮어쓴 커밋의 contribution 처리를 늦게 하거나 누락하는 경우가 있음
+
+**해결**
+빈 커밋 하나를 새로 push하니 즉시 반영됨
+```bash
+git commit --allow-empty -m "test"
+git push origin main
+```
+→ 앞으로 author 수정이 필요하면 amend 대신 **새 커밋**으로 처리
