@@ -42,10 +42,9 @@ public class ItemOption {
         this.stockQuantity = stockQuantity;
     }
 
-    // 재고 차감 (주문 시 사용)
     public void decreaseStock(int quantity) {
         if (this.stockQuantity < quantity) {
-            throw new IllegalStateException("재고가 부족합니다.");
+            throw new IllegalArgumentException("재고가 부족합니다.");
         }
         this.stockQuantity -= quantity;
     }

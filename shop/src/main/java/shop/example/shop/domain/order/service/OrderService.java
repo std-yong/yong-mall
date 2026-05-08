@@ -10,6 +10,7 @@ import shop.example.shop.domain.cart.entity.CartItem;
 import shop.example.shop.domain.cart.repository.CartRepository;
 import shop.example.shop.domain.member.entity.Member;
 import shop.example.shop.domain.member.repository.MemberRepository;
+import shop.example.shop.domain.order.dto.OrderResponse;
 import shop.example.shop.domain.order.entity.Order;
 import shop.example.shop.domain.order.entity.OrderItem;
 import shop.example.shop.domain.order.repository.OrderRepository;
@@ -26,7 +27,7 @@ public class OrderService {
     private final MemberRepository memberRepository;
 
     @Transactional
-    public Order createOrder(Long memberId, String deliveryAddress) {
+    public OrderResponse createOrder(Long memberId, String deliveryAddress) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -34,7 +35,7 @@ public class OrderService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CART_NOT_FOUND));
 
         if (cart.getCartItems().isEmpty()) {
-            throw new CustomException(ErrorCode.CART_NOT_FOUND);
+            throw new CustomException(ErrorCode.CART_EMPTY);
         }
 
         int totalPrice = cart.getCartItems().stream()
@@ -48,6 +49,12 @@ public class OrderService {
                 .build();
 
         for (CartItem cartItem : cart.getCartItems()) {
+            try {
+                cartItem.getItemOption().decreaseStock(cartItem.getQuantity());
+            } catch (IllegalArgumentException e) {
+                throw new CustomException(ErrorCode.OUT_OF_STOCK);
+            }
+
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .itemOption(cartItem.getItemOption())
@@ -61,14 +68,31 @@ public class OrderService {
 
         cart.getCartItems().clear();
 
-        return order;
+        return new OrderResponse(order);
     }
 
-    public Page<Order> getOrders(Long memberId, Pageable pageable) {
-        return orderRepository.findByMemberId(memberId, pageable);
+    public Page<OrderResponse> getOrders(Long memberId, Pageable pageable) {
+        return orderRepository.findByMemberId(memberId, pageable)
+                .map(OrderResponse::new);
     }
 
-    public Order getOrderDetail(Long memberId, Long orderId) {
+    public OrderResponse getOrderDetail(Long memberId, Long orderId) {
+        Order order = getOrderByIdAndMemberId(memberId, orderId);
+        return new OrderResponse(order);
+    }
+
+    @Transactional
+    public void cancelOrder(Long memberId, Long orderId) {
+        Order order = getOrderByIdAndMemberId(memberId, orderId);
+
+        for (OrderItem orderItem : order.getOrderItems()) {
+            orderItem.getItemOption().increaseStock(orderItem.getQuantity());
+        }
+
+        order.cancel();
+    }
+
+    private Order getOrderByIdAndMemberId(Long memberId, Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
 
@@ -77,16 +101,5 @@ public class OrderService {
         }
 
         return order;
-    }
-
-    @Transactional
-    public void cancelOrder(Long memberId, Long orderId) {
-        Order order = getOrderDetail(memberId, orderId);
-
-        if (order.getStatus() != Order.Status.PENDING) {
-            throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
-        }
-
-        order.cancel();
     }
 }

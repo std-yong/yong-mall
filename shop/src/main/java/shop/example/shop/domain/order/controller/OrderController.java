@@ -21,39 +21,30 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    // POST /api/orders - 주문 생성
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(
             @AuthenticationPrincipal Long memberId,
             @Valid @RequestBody CreateOrderRequest request
     ) {
-        OrderResponse response = new OrderResponse(
+        return ResponseEntity.status(HttpStatus.CREATED).body(
                 orderService.createOrder(memberId, request.getDeliveryAddress())
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // GET /api/orders - 내 주문 목록
     @GetMapping
     public ResponseEntity<Page<OrderResponse>> getOrders(
             @AuthenticationPrincipal Long memberId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<OrderResponse> response = orderService.getOrders(memberId, pageable)
-                .map(OrderResponse::new);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(orderService.getOrders(memberId, pageable));
     }
 
-    // GET /api/orders/{orderId} - 주문 상세
     @GetMapping("/{orderId}")
     public ResponseEntity<OrderResponse> getOrderDetail(
             @AuthenticationPrincipal Long memberId,
             @PathVariable Long orderId
     ) {
-        OrderResponse response = new OrderResponse(
-                orderService.getOrderDetail(memberId, orderId)
-        );
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(orderService.getOrderDetail(memberId, orderId));
     }
 
     // DELETE /api/orders/{orderId} - 주문 취소

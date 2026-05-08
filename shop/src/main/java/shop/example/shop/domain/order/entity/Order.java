@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import shop.example.shop.domain.member.entity.Member;
+import shop.example.shop.global.exception.CustomException;
+import shop.example.shop.global.exception.ErrorCode;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,10 +57,9 @@ public class Order {
         this.status = Status.PENDING;
     }
 
-    // 주문 취소 (PENDING 상태일 때만 가능)
     public void cancel() {
         if (this.status != Status.PENDING) {
-            throw new IllegalStateException("이미 처리된 주문은 취소할 수 없습니다.");
+            throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
         this.status = Status.CANCELLED;
     }

@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import shop.example.shop.domain.cart.dto.CartItemResponse;
 import shop.example.shop.domain.cart.entity.Cart;
 import shop.example.shop.domain.cart.entity.CartItem;
 import shop.example.shop.domain.cart.repository.CartRepository;
@@ -59,8 +60,10 @@ public class CartService {
         cartItemRepository.delete(cartItem);
     }
 
-    public List<CartItem> getCartItems(Long memberId) {
+    public List<CartItemResponse> getCartItems(Long memberId) {
         Cart cart = getCart(memberId);
-        return cart.getCartItems();
+        return cart.getCartItems().stream()
+                .map(CartItemResponse::new)
+                .toList();
     }
 }

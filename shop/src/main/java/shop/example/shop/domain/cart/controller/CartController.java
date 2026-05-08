@@ -21,15 +21,11 @@ public class CartController {
 
     private final CartService cartService;
 
-    // GET /api/cart - 내 장바구니 조회
     @GetMapping
     public ResponseEntity<List<CartItemResponse>> getCartItems(
             @AuthenticationPrincipal Long memberId
     ) {
-        List<CartItemResponse> items = cartService.getCartItems(memberId).stream()
-                .map(CartItemResponse::new)
-                .toList();
-        return ResponseEntity.ok(items);
+        return ResponseEntity.ok(cartService.getCartItems(memberId));
     }
 
     // POST /api/cart/items - 장바구니에 상품 담기
