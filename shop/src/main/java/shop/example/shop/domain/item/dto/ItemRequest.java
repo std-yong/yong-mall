@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import shop.example.shop.domain.item.entity.Item;
 
 import java.util.List;
 
@@ -24,7 +25,8 @@ public class ItemRequest {
     @Min(value = 0, message = "가격은 0 이상이어야 합니다.")
     private int price;
 
-    // @Valid를 붙여야 리스트 내부 객체의 유효성 검증도 수행됨
+    private Item.Status status;
+
     @Valid
     private List<ItemOptionRequest> options;
 }

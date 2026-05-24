@@ -22,9 +22,6 @@ public class Item {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Category와 다대일(N:1) 관계
-    // item 여러 개가 하나의 category에 속함
-    // @JoinColumn: 실제 FK 컬럼명 지정 (item 테이블의 category_id 컬럼)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
@@ -42,8 +39,6 @@ public class Item {
     @Column(nullable = false, length = 10)
     private Status status;
 
-    // Item과 ItemOption은 일대다(1:N) 관계
-    // mappedBy = "item" → ItemOption 클래스의 item 필드가 연관관계의 주인
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL)
     private List<ItemOption> options = new ArrayList<>();
 
