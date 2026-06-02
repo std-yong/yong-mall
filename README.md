@@ -1,4 +1,4 @@
-# 🛍️ Shopping Mall API
+# 🛍️ Yong-Mall API
 
 Spring Boot 기반 의류 쇼핑몰 REST API 서버입니다
 
